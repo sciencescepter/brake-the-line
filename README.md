@@ -56,6 +56,35 @@ Hand-checked safety messages not tagged safety_urgent: 0 of 60
 
 **Model history.** DeepSeek V4 Pro worked but cost about $0.03 per message. The free `nvidia/nemotron-3.5-super-vl:free` hit OpenRouter's free daily limit after 67 messages. V4 Flash was cheap and finished all 300 in one run, so every result comes from that one model.
 
+## Booking and safety check (Stage 3)
+
+`scripts/book_queue.py` books every tagged message into one slot from `data/Open Service Slots, Week of 16-21 November 2026.csv` (320 open slots, Mon 16 to Sat 21 Nov). The booking tool is in [triage/booking.py](triage/booking.py). Booking rules:
+
+1. `safety_urgent` books first, into **service center bays**, on the booking day (Mon 16 Nov). When that day's bays run out, it carries into the earliest bay on the following day.
+2. `soon` books next, into the service center bays left over.
+3. `routine` books last. It takes **remote/OTA and support callback** slots first, then **mobile service visits**, then any **service center bays** still free.
+4. Each slot holds one message. No `slot_id` is booked twice.
+
+Within each tag, the oldest message books first. Slot rows with missing or wrong fields are rejected, the same as message rows.
+
+```
+Booked 300 of 300   waitlist 0   no slot booked twice
+safety_urgent on Mon 16 Nov: 24 of 105, then Tue 17 Nov 34, Wed 18 Nov 42, Thu 19 Nov 5
+routine: mobile visit 64, spare bay 60, remote/OTA 38, support callback 24
+Safety check: 0 of 60 hand-checked safety messages missed
+```
+
+**Same-day limit.** Only 24 service center bays are open on Mon 16 Nov, but there are 105 `safety_urgent` messages. Same day for all of them isn't possible with these slots. They do take every bay from Monday to Thursday morning before any `soon` or `routine` message gets one.
+
+**Routine overflow.** There are 186 `routine` messages but only 62 remote and callback slots. I chose to let routine spill into mobile visits and then spare bays, so all 300 are booked. The 60 routine messages in bays keep their tagged fix path.
+
+**Output** (in `output/`):
+- [`booking_report.md`](output/booking_report.md): the booking page and the safety check report. For every message it shows the time slot, slot type, issue type (alert code), tag and fix path. It also compares the tags with the 60 hand-checked safety messages and lists any misses.
+- `service_schedule.csv`: the same bookings as data, with slot, bay and technician.
+- `waitlist.csv`: messages with no slot left (empty this week).
+
+`scripts/safety_check.py` runs the safety check on its own and exits with an error if anything was missed.
+
 ## Run it
 
 ```bash
@@ -63,6 +92,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m scripts.check_rules   # load batch, check rules against the 60 hand-checked messages
 .venv/bin/python -m pytest -q             # schema, guard and retry tests
 .venv/bin/python -m scripts.tag_batch     # Stage 2: tag every message (needs .env)
+.venv/bin/python -m scripts.book_queue    # Stage 3: book slots, write output/booking_report.md
+.venv/bin/python -m scripts.safety_check  # Stage 3: tags vs the 60 hand-checked messages
 ```
 
 `.env` (git-ignored) needs two values:
@@ -76,18 +107,21 @@ OPENROUTER_MODEL=deepseek/deepseek-v4-flash
 
 ```
 data/       Overnight Fault Message Batch (16 November 2026).csv
+            Open Service Slots, Week of 16-21 November 2026.csv
 triage/     rules.py (tags, fix paths, safety codes, guard) · schema.py (Pydantic) · prompt.py · load.py
             llm.py (calls the model, validates, retries or flags)
-scripts/    check_rules.py · tag_batch.py
-tests/      test_schema.py · test_llm.py
+            booking.py (booking tool) · safety_check.py
+scripts/    check_rules.py · tag_batch.py · book_queue.py · safety_check.py
+tests/      test_schema.py · test_llm.py · test_booking.py
 output/     tagged_messages.csv · flagged_messages.csv · rejected_rows.csv · tagging_cache.jsonl
+            booking_report.md · service_schedule.csv · waitlist.csv
 ```
 
 ## Stages
 
 1. Pydantic urgency rules (done)
 2. Tagging script and tagged output for every message (done)
-3. Booking tool, service schedule and safety check script
+3. Booking tool, service schedule and safety check script (done)
 4. Streamlit page
 5. Slides and presentation
 
@@ -95,5 +129,5 @@ output/     tagged_messages.csv · flagged_messages.csv · rejected_rows.csv · 
 
 - The batch has **300** messages (`MSG-10001` to `MSG-10300`), not the 400 in the brief.
 - The 60 hand-checked messages are the `hand_checked` / `hand_checked_safety_fault` columns in the batch, not a separate file. All 60 are safety faults. The model never sees these columns.
-- There is no Open Service Slots CSV yet. Stage 3 needs one, and its `fix_path` values must match the three paths above.
+- The Open Service Slots CSV has no `service_center` or `fix_path` columns. Slots are matched on `slot_type` instead, and the message's service center isn't used for booking.
 - The text guard was tuned while looking at the hand-checked set, so 0 of 60 is the best case. The model is the main classifier, and the guard is a backstop.

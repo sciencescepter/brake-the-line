@@ -37,12 +37,39 @@ forced safety_urgent by hidden-safety text guard: 41
 hand-checked safety messages missed by the rules: 0 of 60
 ```
 
+## Tagging results (Stage 2)
+
+`scripts/tag_batch.py` sends each message to the model through OpenRouter. It asks for structured output that matches the `TriageResult` schema, then checks every answer with Pydantic. An invalid answer goes back to the model with the validation error (up to 3 attempts). If it still fails, the message is flagged in `output/flagged_messages.csv`. It is never accepted as it is. Progress is saved after each message, so a stopped run picks up where it left off.
+
+Model: `deepseek/deepseek-v4-flash`. Tagging all 300 messages cost about $0.01.
+
+```
+Tagged and validated: 300 of 300   flagged: 0   needed a retry: 0
+By urgency:  safety_urgent 105, soon 9, routine 186
+By fix path: Mobile service / remote support 186, Owner stops driving & car is towed in 105, Service center visit 9
+Hand-checked safety messages not tagged safety_urgent: 0 of 60
+```
+
+- The model tagged all 105 safety messages `safety_urgent` on its first try. That's 64 caught by alert code and 41 by the hidden-safety guard. The schema didn't have to reject a single answer.
+- The 9 `soon` messages are mostly suspension clunks, plus one charge-port latch and one range drop.
+- The results are in `output/tagged_messages.csv`, sorted `safety_urgent`, then `soon`, then `routine`, oldest first within each tag. Each row has the tag, fix path, the model's reason and which hard rule (if any) required `safety_urgent`.
+
+**Model history.** DeepSeek V4 Pro worked but cost about $0.03 per message. The free `nvidia/nemotron-3.5-super-vl:free` hit OpenRouter's free daily limit after 67 messages. V4 Flash was cheap and finished all 300 in one run, so every result comes from that one model.
+
 ## Run it
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m scripts.check_rules   # load batch, check rules against the 60 hand-checked messages
-.venv/bin/python -m pytest -q             # schema and guard tests
+.venv/bin/python -m pytest -q             # schema, guard and retry tests
+.venv/bin/python -m scripts.tag_batch     # Stage 2: tag every message (needs .env)
+```
+
+`.env` (git-ignored) needs two values:
+
+```
+OPENROUTER_API_KEY=<your key>
+OPENROUTER_MODEL=deepseek/deepseek-v4-flash
 ```
 
 ## Layout
@@ -50,14 +77,16 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 data/       Overnight Fault Message Batch (16 November 2026).csv
 triage/     rules.py (tags, fix paths, safety codes, guard) · schema.py (Pydantic) · prompt.py · load.py
-scripts/    check_rules.py
-tests/      test_schema.py
+            llm.py (calls the model, validates, retries or flags)
+scripts/    check_rules.py · tag_batch.py
+tests/      test_schema.py · test_llm.py
+output/     tagged_messages.csv · flagged_messages.csv · rejected_rows.csv · tagging_cache.jsonl
 ```
 
 ## Stages
 
 1. Pydantic urgency rules (done)
-2. Tagging script and tagged output for every message (free OpenRouter model)
+2. Tagging script and tagged output for every message (done)
 3. Booking tool, service schedule and safety check script
 4. Streamlit page
 5. Slides and presentation

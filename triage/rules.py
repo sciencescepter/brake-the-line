@@ -4,7 +4,7 @@ Everything the service team decided lives here, so the schema, the prompt and
 the scripts all read the same values:
 
 * the three urgency tags
-* the four fix paths and which tag each one may serve
+* the three fix paths and which tag each one may serve
 * the safety alert list (vehicle_alert_code values that always mean safety_urgent)
 * the hidden-safety guard: brake, pedal, stability and steering symptoms in the
   message text that force safety_urgent whatever the tone or alert code
@@ -37,25 +37,21 @@ class FixPath(str, Enum):
     SERVICE_CENTER_VISIT = "service_center_visit"
     # Mobile technician visit, or remote support (app, software, over-the-air).
     MOBILE_REMOTE_SUPPORT = "mobile_remote_support"
-    # Fourth path: a part has to be ordered before the job can be done, so the
-    # booking lands on the first slot after the part is expected
-    # (e.g. a wiper arm or charge-port door swap "at my next visit").
-    PARTS_ORDER_THEN_VISIT = "parts_order_then_visit"
+    # A fourth path is not used for now.
 
 
 FIX_PATH_LABELS: dict[FixPath, str] = {
     FixPath.TOW_IN: "Owner stops driving & car is towed in",
     FixPath.SERVICE_CENTER_VISIT: "Service center visit",
     FixPath.MOBILE_REMOTE_SUPPORT: "Mobile service / remote support",
-    FixPath.PARTS_ORDER_THEN_VISIT: "Order part, then service visit",
 }
 
 # Which fix paths each urgency tag may use. A tag/path pair outside this
 # table fails validation.
 ALLOWED_FIX_PATHS: dict[Urgency, frozenset[FixPath]] = {
     Urgency.SAFETY_URGENT: frozenset({FixPath.TOW_IN}),
-    Urgency.SOON: frozenset({FixPath.SERVICE_CENTER_VISIT, FixPath.PARTS_ORDER_THEN_VISIT}),
-    Urgency.ROUTINE: frozenset({FixPath.MOBILE_REMOTE_SUPPORT, FixPath.PARTS_ORDER_THEN_VISIT}),
+    Urgency.SOON: frozenset({FixPath.SERVICE_CENTER_VISIT}),
+    Urgency.ROUTINE: frozenset({FixPath.MOBILE_REMOTE_SUPPORT}),
 }
 
 # The 11 distinct vehicle_alert_code values in the 16 Nov 2026 batch.

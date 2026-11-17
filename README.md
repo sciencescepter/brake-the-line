@@ -17,10 +17,10 @@ The schema enforces the same rule in code, so the prompt is not the only safegua
 | Urgency tag | Fix path(s) allowed |
 |---|---|
 | `safety_urgent` | `tow_in`: owner stops driving and the car is towed in |
-| `soon` | `service_center_visit`, `parts_order_then_visit` |
-| `routine` | `mobile_remote_support`, `parts_order_then_visit` |
+| `soon` | `service_center_visit`: owner drives the car to a service center |
+| `routine` | `mobile_remote_support`: mobile service or remote support |
 
-`parts_order_then_visit` is the fourth path. It covers jobs that need a part ordered first (for example "swap the wiper arm at my next visit"), so the booking lands after the part arrives.
+**Change (17 Nov 2026):** I dropped the fourth fix path, `parts_order_then_visit`, for now, so each tag has exactly one fix path. A fourth path may be added again in a later stage.
 
 **Safety alert list.** These `vehicle_alert_code` values always mean `safety_urgent`: `BRK_a001`, `BRK_w003`, `ABS_w002`, `ESP_w003`, `EPAS_a191`, `EPAS_w202`. The other five codes in the batch (`HVAC_w003`, `UI_a004`, `WIP_w001`, `CP_a004`, `NONE`) are left to the model and the text guard.
 
@@ -66,5 +66,5 @@ tests/      test_schema.py
 
 - The batch has **300** messages (`MSG-10001` to `MSG-10300`), not the 400 in the brief.
 - The 60 hand-checked messages are the `hand_checked` / `hand_checked_safety_fault` columns in the batch, not a separate file. All 60 are safety faults. The model never sees these columns.
-- There is no Open Service Slots CSV yet. Stage 3 needs one, and its `fix_path` values must match the four paths above.
+- There is no Open Service Slots CSV yet. Stage 3 needs one, and its `fix_path` values must match the three paths above.
 - The text guard was tuned while looking at the hand-checked set, so 0 of 60 is the best case. The model is the main classifier, and the guard is a backstop.

@@ -34,8 +34,6 @@ Fix paths (each tag may only use its own paths):
 - "{FixPath.TOW_IN.value}" ({FIX_PATH_LABELS[FixPath.TOW_IN]}): safety_urgent only.
 - "{FixPath.SERVICE_CENTER_VISIT.value}" ({FIX_PATH_LABELS[FixPath.SERVICE_CENTER_VISIT]}): soon.
 - "{FixPath.MOBILE_REMOTE_SUPPORT.value}" ({FIX_PATH_LABELS[FixPath.MOBILE_REMOTE_SUPPORT]}): routine.
-- "{FixPath.PARTS_ORDER_THEN_VISIT.value}" ({FIX_PATH_LABELS[FixPath.PARTS_ORDER_THEN_VISIT]}): soon or routine,
-  when a part must be ordered before the job (e.g. "swap the wiper arm at my next visit").
 
 Safety alert codes. If vehicle_alert_code is one of these, the tag is safety_urgent:
 {", ".join(sorted(SAFETY_ALERT_CODES))}

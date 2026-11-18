@@ -103,6 +103,10 @@ The page, top to bottom:
 3. **Safety check:** the 60 hand-checked safety messages, with the tag each one got and how it was caught (alert code, hidden-safety text or model). Any misses are listed in red.
 4. **Paste box:** tags a new message live. The answer goes through the same Pydantic validation and retry as the batch; if it still fails, it is flagged, never shown unchecked. The box shows the tag, fix path, any hard rule that applied, where the message would sit in the queue (last in its tag, since it's the newest) and a preview of the slot it would get from the slots still open. The schedule files are not changed.
 
+**Acceptance test: MSG-10309.** This is the calm "lovely Tahoe trip, thank you" message from `data/Acceptance Test Messages for the Morning Queue Page.csv`. It has no alert code, but it describes the pedal going further down and a faint grinding at a full stop. Pasted into the page, it's tagged `safety_urgent` with the tow-in fix path, validated on the first attempt, and placed at #106, last of the safety_urgent messages. The acceptance file is used only for this test; it isn't part of the 300-message batch.
+
+![MSG-10309 in the paste box](docs/paste_box_msg_10309.jpg)
+
 The page loads without an API key. Only the paste box needs `OPENROUTER_API_KEY`, and it's disabled with a short note when the key is missing.
 
 ## Run it
@@ -128,9 +132,10 @@ OPENROUTER_MODEL=deepseek/deepseek-v4-flash
 
 ```
 app.py      Stage 4 Streamlit page
-docs/       fault_queue_page.jpg
+docs/       fault_queue_page.jpg · paste_box_msg_10309.jpg
 data/       Overnight Fault Message Batch (16 November 2026).csv
             Open Service Slots, Week of 16-21 November 2026.csv
+            Acceptance Test Messages for the Morning Queue Page.csv (paste box test only)
 triage/     rules.py (tags, fix paths, safety codes, guard) · schema.py (Pydantic) · prompt.py · load.py
             llm.py (calls the model, validates, retries or flags)
             booking.py (booking tool) · safety_check.py · queue_view.py (page helpers)

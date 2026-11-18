@@ -85,6 +85,26 @@ Safety check: 0 of 60 hand-checked safety messages missed
 
 `scripts/safety_check.py` runs the safety check on its own and exits with an error if anything was missed.
 
+## Fault queue page (Stage 4)
+
+```bash
+.venv/bin/streamlit run app.py
+```
+
+![Fault queue page](docs/fault_queue_page.jpg)
+
+[app.py](app.py) is a Streamlit page that brings Stages 1–3 together. It reads the Stage 2 and 3 output files and uses the code in `triage/` for all rules, tagging and booking, so nothing is worked out twice.
+
+**Queue order:** by urgency (`safety_urgent`, then `soon`, then `routine`), then **earliest submitted first** within each tag, using `received_at`. Ties are broken by `message_id`. The page and the booking tool share one function (`triage.booking.queue_order`), so they always agree.
+
+The page, top to bottom:
+1. **Count bar:** total processed (300 of 300), `safety_urgent` / `soon` / `routine` counts, booked (300 of 300) and safety faults missed (0 of 60). The missed count is green at 0 and red above 0.
+2. **Fault queue:** every message in queue order, with queue #, message, submitted time, time slot, slot type, issue type (alert code), tag (colour-coded), fix path and the model's reason. You can filter by tag or slot type, or search the message text. Filtering keeps each message's original queue #. Select a row to read the full message.
+3. **Safety check:** the 60 hand-checked safety messages, with the tag each one got and how it was caught (alert code, hidden-safety text or model). Any misses are listed in red.
+4. **Paste box:** tags a new message live. The answer goes through the same Pydantic validation and retry as the batch; if it still fails, it is flagged, never shown unchecked. The box shows the tag, fix path, any hard rule that applied, where the message would sit in the queue (last in its tag, since it's the newest) and a preview of the slot it would get from the slots still open. The schedule files are not changed.
+
+The page loads without an API key. Only the paste box needs `OPENROUTER_API_KEY`, and it's disabled with a short note when the key is missing.
+
 ## Run it
 
 ```bash
@@ -94,6 +114,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m scripts.tag_batch     # Stage 2: tag every message (needs .env)
 .venv/bin/python -m scripts.book_queue    # Stage 3: book slots, write output/booking_report.md
 .venv/bin/python -m scripts.safety_check  # Stage 3: tags vs the 60 hand-checked messages
+.venv/bin/streamlit run app.py            # Stage 4: the fault queue page
 ```
 
 `.env` (git-ignored) needs two values:
@@ -106,13 +127,15 @@ OPENROUTER_MODEL=deepseek/deepseek-v4-flash
 ## Layout
 
 ```
+app.py      Stage 4 Streamlit page
+docs/       fault_queue_page.jpg
 data/       Overnight Fault Message Batch (16 November 2026).csv
             Open Service Slots, Week of 16-21 November 2026.csv
 triage/     rules.py (tags, fix paths, safety codes, guard) · schema.py (Pydantic) · prompt.py · load.py
             llm.py (calls the model, validates, retries or flags)
-            booking.py (booking tool) · safety_check.py
+            booking.py (booking tool) · safety_check.py · queue_view.py (page helpers)
 scripts/    check_rules.py · tag_batch.py · book_queue.py · safety_check.py
-tests/      test_schema.py · test_llm.py · test_booking.py
+tests/      test_schema.py · test_llm.py · test_booking.py · test_queue_view.py
 output/     tagged_messages.csv · flagged_messages.csv · rejected_rows.csv · tagging_cache.jsonl
             booking_report.md · service_schedule.csv · waitlist.csv
 ```
@@ -122,7 +145,7 @@ output/     tagged_messages.csv · flagged_messages.csv · rejected_rows.csv · 
 1. Pydantic urgency rules (done)
 2. Tagging script and tagged output for every message (done)
 3. Booking tool, service schedule and safety check script (done)
-4. Streamlit page
+4. Streamlit page (done)
 5. Slides and presentation
 
 ## Data notes

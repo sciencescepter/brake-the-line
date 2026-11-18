@@ -133,10 +133,11 @@ def load_slots(path: Path = DEFAULT_SLOTS) -> tuple[list[Slot], list[RejectedRow
 class BookingTool:
     """Holds the open slots and books one message per call."""
 
-    def __init__(self, slots: list[Slot]):
+    def __init__(self, slots: list[Slot], booking_day: date | None = None):
         self._open: list[Slot] = sorted(slots, key=lambda s: (s.start, s.slot_id))
         self._taken: set[str] = set()
-        self.booking_day: date | None = self._open[0].slot_date if self._open else None
+        # The day safety_urgent should book on. Defaults to the first day in the slot list.
+        self.booking_day: date | None = booking_day or (self._open[0].slot_date if self._open else None)
 
     def remaining(self, slot_type: str | None = None) -> int:
         return sum(1 for s in self._open if s.slot_id not in self._taken
